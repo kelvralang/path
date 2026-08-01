@@ -1,4 +1,5 @@
 package path
+fn isAbsolute(value str) bool
 fn join(base str, child str) str
 fn normalize(value str) str
 fn basename(value str) str

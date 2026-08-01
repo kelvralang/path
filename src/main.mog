@@ -1,9 +1,74 @@
 fn _sep(code i64) bool { return code == 47 || code == 92 }
 
-fn _parts(value str) Array<str> {
+fn _asciiLetter(code i64) bool {
+    return (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
+}
+
+fn _foldAscii(code i64) i64 {
+    if (code >= 65 && code <= 90) return code + 32
+    return code
+}
+
+type _Root struct {
+    text str
+    start i64
+    absolute bool
+    driveRelative bool
+    windows bool
+}
+
+fn _root(value str) _Root {
+    var result _Root = _Root()
+    result.text = ""
+    result.start = 0
+    result.absolute = false
+    result.driveRelative = false
+    result.windows = false
+    if (len(value) >= 2 && _asciiLetter(charCodeAt(value, 0)) && charCodeAt(value, 1) == 58) {
+        result.text = charFromCode(charCodeAt(value, 0)) + ":"
+        result.start = 2
+        result.windows = true
+        result.driveRelative = true
+        if (result.start < len(value) && _sep(charCodeAt(value, result.start))) {
+            result.absolute = true
+            result.driveRelative = false
+            result.text = result.text + "/"
+            while (result.start < len(value) && _sep(charCodeAt(value, result.start))) result.start = result.start + 1
+        }
+        return result
+    }
+
+    if (len(value) >= 3 && _sep(charCodeAt(value, 0)) && _sep(charCodeAt(value, 1)) && !_sep(charCodeAt(value, 2))) {
+        var index i64 = 2
+        var serverStart i64 = index
+        while (index < len(value) && !_sep(charCodeAt(value, index))) index = index + 1
+        var server str = slice(value, serverStart, index)
+        while (index < len(value) && _sep(charCodeAt(value, index))) index = index + 1
+        var shareStart i64 = index
+        while (index < len(value) && !_sep(charCodeAt(value, index))) index = index + 1
+        var share str = slice(value, shareStart, index)
+        result.text = "//" + server
+        if (len(share) > 0) result.text = result.text + "/" + share
+        result.absolute = true
+        result.windows = true
+        while (index < len(value) && _sep(charCodeAt(value, index))) index = index + 1
+        result.start = index
+        return result
+    }
+
+    if (len(value) > 0 && _sep(charCodeAt(value, 0))) {
+        result.text = "/"
+        result.absolute = true
+        result.start = 1
+        while (result.start < len(value) && _sep(charCodeAt(value, result.start))) result.start = result.start + 1
+    }
+    return result
+}
+
+fn _partsFrom(value str, startAt i64) Array<str> {
     var result Array<str> = []
-    var start i64 = 0
-    var index i64 = 0
+    var start i64 = startAt
+    var index i64 = startAt
     while (index <= len(value)) {
         if (index == len(value) || _sep(charCodeAt(value, index))) {
             if (index > start) result.push(slice(value, start, index))
@@ -14,45 +79,75 @@ fn _parts(value str) Array<str> {
     return result
 }
 
+fn _sameText(left str, right str, foldCase bool) bool {
+    if (len(left) != len(right)) return false
+    var index i64 = 0
+    while (index < len(left)) {
+        var a i64 = charCodeAt(left, index)
+        var b i64 = charCodeAt(right, index)
+        if (foldCase) {
+            a = _foldAscii(a)
+            b = _foldAscii(b)
+        }
+        if (a != b) return false
+        index = index + 1
+    }
+    return true
+}
+
+fn isAbsolute(value str) bool { return _root(value).absolute }
+
 fn join(base str, child str) str {
     if (len(base) == 0) return normalize(child)
     if (len(child) == 0) return normalize(base)
-    return normalize(base + "/" + child)
+    var childRoot _Root = _root(child)
+    if (len(childRoot.text) > 0) return normalize(child)
+    var normalizedBase str = normalize(base)
+    var baseRoot _Root = _root(normalizedBase)
+    if (baseRoot.driveRelative && normalizedBase == baseRoot.text) return normalize(normalizedBase + child)
+    return normalize(normalizedBase + "/" + child)
 }
 
 fn normalize(value str) str {
-    var absolute bool = len(value) > 0 && _sep(charCodeAt(value, 0))
+    var root _Root = _root(value)
     var stack Array<str> = []
-    for (var part str : _parts(value)) {
+    for (var part str : _partsFrom(value, root.start)) {
         if (part == ".") { } else if (part == "..") {
-            if (!stack.isEmpty() && stack.last() != "..") { stack.pop() } else if (!absolute) { stack.push(part) }
+            if (!stack.isEmpty() && stack.last() != "..") { stack.pop() } else if (!root.absolute) { stack.push(part) }
         } else { stack.push(part) }
     }
-    var out str = ""
-    if (absolute) out = "/"
+    var out str = root.text
     var index i64 = 0
     while (index < stack.size()) {
-        if (index > 0) out = out + "/"
+        if (len(out) > 0 && !_sep(charCodeAt(out, len(out) - 1)) && !(root.driveRelative && index == 0)) out = out + "/"
+        if (len(out) == 0 && index > 0) out = out + "/"
         out = out + stack[index]
         index = index + 1
     }
-    if (len(out) == 0 && !absolute) return "."
+    if (len(out) == 0) return "."
     return out
 }
 
 fn basename(value str) str {
-    var parts Array<str> = _parts(normalize(value))
+    var normalized str = normalize(value)
+    var root _Root = _root(normalized)
+    var parts Array<str> = _partsFrom(normalized, root.start)
     if (parts.isEmpty()) return ""
     return parts.last()
 }
 
 fn dirname(value str) str {
     var normalized str = normalize(value)
+    var root _Root = _root(normalized)
     var name str = basename(normalized)
     if (len(name) == 0) return normalized
-    var end i64 = len(normalized) - len(name)
-    if (end > 1) return slice(normalized, 0, end - 1)
-    if (end == 1) return "/"
+    var nameStart i64 = len(normalized) - len(name)
+    if (nameStart <= root.start) {
+        if (len(root.text) > 0) return root.text
+        return "."
+    }
+    if (_sep(charCodeAt(normalized, nameStart - 1))) return slice(normalized, 0, nameStart - 1)
+    if (len(root.text) > 0) return root.text
     return "."
 }
 
@@ -70,10 +165,16 @@ fn extension(value str) str {
 }
 
 fn relative(base str, target str) str {
-    var from Array<str> = _parts(normalize(base))
-    var to Array<str> = _parts(normalize(target))
+    var normalizedBase str = normalize(base)
+    var normalizedTarget str = normalize(target)
+    var baseRoot _Root = _root(normalizedBase)
+    var targetRoot _Root = _root(normalizedTarget)
+    var windows bool = baseRoot.windows || targetRoot.windows
+    if (!_sameText(baseRoot.text, targetRoot.text, windows) || baseRoot.absolute != targetRoot.absolute) return normalizedTarget
+    var from Array<str> = _partsFrom(normalizedBase, baseRoot.start)
+    var to Array<str> = _partsFrom(normalizedTarget, targetRoot.start)
     var common i64 = 0
-    while (common < from.size() && common < to.size() && from[common] == to[common]) common = common + 1
+    while (common < from.size() && common < to.size() && _sameText(from[common], to[common], windows)) common = common + 1
     var out str = ""
     var index i64 = common
     while (index < from.size()) {
