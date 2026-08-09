@@ -14,83 +14,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  compatibility:
-    name: Mog ${{ matrix.runtime_ref }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        runtime_ref: ["v0.1.4", "main"]
-    env:
-      PACKAGE_NAME: "path"
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          repository: moglang/mog
-          ref: ${{ matrix.runtime_ref }}
-          path: .runtime/mog
-      - name: Verify release metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' mog.toml | head -n 1)"
-          license="$(sed -n 's/^license = "\([^"]*\)"/\1/p' mog.toml | head -n 1)"
-          test -n "$version"
-          test -f LICENSE
-          test -f package.api.mog
-          test -f tests/main.mog
-          grep -Fq "## $version" CHANGELOG.md
-          grep -q '^```mog' README.md
-          case "$license" in
-            GPL-3.0-only) grep -Fq "GNU GENERAL PUBLIC LICENSE" LICENSE ;;
-            MIT) grep -Fq "MIT License" LICENSE ;;
-            *) echo "Unsupported or unchecked license declaration: $license" >&2; exit 1 ;;
-          esac
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            test "${GITHUB_REF_NAME#v}" = "$version"
+  minimum-runtime:
+    uses: moglang/package-actions/.github/workflows/source-ci.yml@v1
+    with:
+      package_name: path
+      runtime_ref: v0.1.4
+      test_command: |
+        for fixture in "$PACKAGE_STAGE"/tests/errors/*.mog; do
+          [[ -e "$fixture" ]] || continue
+          if MOG_CACHE_DIR="$RUNNER_TEMP/mog-cache" "$MOG_RUNTIME" run "$fixture"; then
+            echo "Expected failure fixture succeeded: $fixture" >&2
+            exit 1
           fi
-      - name: Build Mog runtime
-        run: |
-          cmake -S .runtime/mog -B .runtime/mog/build -DCMAKE_BUILD_TYPE=Release
-          cmake --build .runtime/mog/build --parallel
-      - name: Validate package and run tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          runtime="$GITHUB_WORKSPACE/.runtime/mog/build/interpreter"
-          version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' mog.toml | head -n 1)"
-          stage="$RUNNER_TEMP/github.com/moglang/$PACKAGE_NAME"
-          mkdir -p "$(dirname "$stage")"
-          rsync -a --exclude .git --exclude .runtime "$GITHUB_WORKSPACE/" "$stage/"
-          "$runtime" validate-package "$stage"
-          project="$RUNNER_TEMP/package-test"
-          mkdir -p "$project"
-          sed -e "s|__PACKAGE_NAME__|$PACKAGE_NAME|g" -e "s|__PACKAGE_VERSION__|$version|g" -e "s|__PACKAGE_PATH__|$stage|g" \
-            "$GITHUB_WORKSPACE/.github/package-test.toml.in" > "$project/mog.toml"
-          (
-            cd "$project"
-            MOG_CACHE_DIR="$RUNNER_TEMP/mog-cache" "$runtime" run "$stage/tests/main.mog"
-          )
-          for fixture in "$stage"/tests/errors/*.mog; do
-            [[ -e "$fixture" ]] || continue
-            if (
-              cd "$project"
-              MOG_CACHE_DIR="$RUNNER_TEMP/mog-cache" "$runtime" run "$fixture"
-            ); then
-              echo "Expected failure fixture succeeded: $fixture" >&2
-              exit 1
-            fi
-          done
+        done
 
-  validate:
-    if: always()
-    needs: compatibility
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Require compatibility matrix
-        env:
-          RESULT: ${{ needs.compatibility.result }}
-        run: test "$RESULT" = success
+  current-runtime:
+    uses: moglang/package-actions/.github/workflows/source-ci.yml@v1
+    with:
+      package_name: path
+      runtime_ref: main
+      test_command: |
+        for fixture in "$PACKAGE_STAGE"/tests/errors/*.mog; do
+          [[ -e "$fixture" ]] || continue
+          if MOG_CACHE_DIR="$RUNNER_TEMP/mog-cache" "$MOG_RUNTIME" run "$fixture"; then
+            echo "Expected failure fixture succeeded: $fixture" >&2
+            exit 1
+          fi
+        done
