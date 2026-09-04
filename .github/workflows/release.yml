@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   release:
-    uses: kelvralang/package-actions/.github/workflows/source-release.yml@v1
+    uses: kelvralang/package-actions/.github/workflows/source-release.yml@v2
     with:
       package_name: path
       runtime_ref: main

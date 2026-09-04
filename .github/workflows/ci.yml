@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   current-runtime:
-    uses: kelvralang/package-actions/.github/workflows/source-ci.yml@v1
+    uses: kelvralang/package-actions/.github/workflows/source-ci.yml@v2
     with:
       package_name: path
       runtime_ref: main
