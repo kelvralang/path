@@ -14,29 +14,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Keep the protected compatibility-floor context during the 0.2.0 bootstrap.
+  # Pin this to v0.2.0 after the Kelvra runtime release is published.
   minimum-runtime:
-    uses: moglang/package-actions/.github/workflows/source-ci.yml@v1
+    uses: kelvralang/package-actions/.github/workflows/source-ci.yml@v2
     with:
       package_name: path
-      runtime_ref: v0.1.4
+      runtime_ref: main
       test_command: |
-        for fixture in "$PACKAGE_STAGE"/tests/errors/*.mog; do
+        for fixture in "$PACKAGE_STAGE"/tests/errors/*.kel; do
           [[ -e "$fixture" ]] || continue
-          if MOG_CACHE_DIR="$RUNNER_TEMP/mog-cache" "$MOG_RUNTIME" run "$fixture"; then
+          if KELVRA_CACHE_DIR="$RUNNER_TEMP/kelvra-cache" "$KELVRA_RUNTIME" run "$fixture"; then
             echo "Expected failure fixture succeeded: $fixture" >&2
             exit 1
           fi
         done
 
   current-runtime:
-    uses: moglang/package-actions/.github/workflows/source-ci.yml@v1
+    uses: kelvralang/package-actions/.github/workflows/source-ci.yml@v2
     with:
       package_name: path
       runtime_ref: main
       test_command: |
-        for fixture in "$PACKAGE_STAGE"/tests/errors/*.mog; do
+        for fixture in "$PACKAGE_STAGE"/tests/errors/*.kel; do
           [[ -e "$fixture" ]] || continue
-          if MOG_CACHE_DIR="$RUNNER_TEMP/mog-cache" "$MOG_RUNTIME" run "$fixture"; then
+          if KELVRA_CACHE_DIR="$RUNNER_TEMP/kelvra-cache" "$KELVRA_RUNTIME" run "$fixture"; then
             echo "Expected failure fixture succeeded: $fixture" >&2
             exit 1
           fi
