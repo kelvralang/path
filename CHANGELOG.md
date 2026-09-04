@@ -2,7 +2,9 @@
 
 ## 0.2.0
 
-- Correct the minimum supported runtime to Mog 0.1.4, the first release that
+- Rename package manifests, source files, imports, automation, and documentation from Mog to Kelvra; require Kelvra 0.2.0 or newer.
+
+- Correct the minimum supported runtime to Kelvra 0.1.4, the first release that
   embeds its configured package-compatibility version correctly.
 - Add pinned CI/release automation with tag checks, 0.1.4/current-runtime tests,
   checksummed archives, and automated action updates.
@@ -17,7 +19,7 @@
 
 ## 0.1.1
 
-- Require Mog runtime 0.1.1 or newer for string slicing and character inspection.
+- Require Kelvra runtime 0.1.1 or newer for string slicing and character inspection.
 - Add complete package publication metadata.
 
 ## 0.1.0

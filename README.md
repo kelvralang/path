@@ -1,22 +1,22 @@
-# moglang/path
+# kelvralang/path
 
 Cross-platform lexical path manipulation for POSIX and Windows path strings.
 
 ## Install and import
 
 ```sh
-mog add github.com/moglang/path@v0.2.0
+kelvra add github.com/kelvralang/path@v0.2.0
 ```
 
-```mog
-const path = @import("github.com/moglang/path")
+```kelvra
+const path = @import("github.com/kelvralang/path")
 
 print(path.normalize("/srv/app/../data")) // /srv/data
-print(path.join("C:/work", "src/main.mog")) // C:/work/src/main.mog
+print(path.join("C:/work", "src/main.kel")) // C:/work/src/main.kel
 print(path.relative("/srv/app", "/srv/test")) // ../test
 ```
 
-The canonical import is `github.com/moglang/path`; `package.api.mog` is the
+The canonical import is `github.com/kelvralang/path`; `package.api.kel` is the
 complete public contract.
 
 ## Lexical model
@@ -41,7 +41,7 @@ a leading-only dot such as `.gitignore` is not an extension.
 
 ## Compatibility
 
-Version 0.2.0 requires Mog runtime `^0.1.4`. This source package has no native
+Version 0.2.0 requires Kelvra runtime `^0.2.0`. This source package has no native
 build dependency and behaves the same on every host operating system; the path
 syntax is determined from the input string. It is licensed under GPL-3.0-only;
 see `LICENSE`.

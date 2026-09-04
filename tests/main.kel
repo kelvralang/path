@@ -1,4 +1,4 @@
-const path = @import("github.com/moglang/path")
+const path = @import("github.com/kelvralang/path")
 fn assert(condition bool, message str) void { if (!condition) error(message) }
 
 assert(path.normalize("a/./b/../c") == "a/c", "relative normalization")
